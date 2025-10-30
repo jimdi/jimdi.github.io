@@ -44,7 +44,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <script>
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    // 🔑 ЗАМЕНИ ЭТОТ БЛОК НА СВОЙ ИЗ FIREBASE CONSOLE
     const firebaseConfig = {
       apiKey: "AIzaSyC2qqk176eb1d_YdqrOLGrouBmiSjkbkxY",
       authDomain: "auto-meeting-demo.firebaseapp.com",
@@ -53,22 +53,25 @@
       messagingSenderId: "1056765338667",
       appId: "1:1056765338667:web:3d2c44f5a5854debbef66e",
       measurementId: "G-WLVCEZD38L"
+
     };
 
-    // Инициализация Firebase
+    // ============ НИЖЕ НЕ ТРОГАТЬ ============
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const roomRef = db.ref('rooms/auto'); // одна общая комната
+    const roomRef = db.ref('rooms/main'); // одна комната
 
-    // Генерируем уникальный ID для участника
-    const myPeerId = Math.random().toString(36).substring(2, 10);
+    const myId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     let localStream = null;
-    const peers = {}; // { peerId: RTCPeerConnection }
+    const peerConnections = {};
 
     const statusEl = document.getElementById('status');
     const videosContainer = document.getElementById('videos');
 
-    // Получаем локальный поток
+    // Удаляем старые записи (опционально)
+    roomRef.onDisconnect().remove();
+
+    // Получаем медиа
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
         localStream = stream;
@@ -76,61 +79,64 @@
         joinRoom();
       })
       .catch(err => {
-        statusEl.textContent = 'Ошибка: нет доступа к камере/микрофону';
+        statusEl.textContent = '❌ Камера/микрофон недоступны';
         console.error(err);
       });
 
     function joinRoom() {
-      // Регистрируем себя в комнате
-      const myRef = roomRef.child(myPeerId);
-      myRef.set({ joinedAt: firebase.database.ServerValue.TIMESTAMP });
+      // Регистрируем себя
+      roomRef.child(myId).set({
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
 
-      // Удаляем себя при выходе
+      // Убираем себя при выходе
       window.addEventListener('beforeunload', () => {
-        myRef.remove();
-        Object.values(peers).forEach(pc => pc.close());
+        roomRef.child(myId).remove();
+        Object.values(peerConnections).forEach(pc => pc.close());
       });
 
-      // Слушаем других участников
-      roomRef.on('child_added', async (snapshot) => {
+      // Слушаем новых участников
+      roomRef.on('child_added', (snapshot) => {
         const peerId = snapshot.key;
-        if (peerId === myPeerId || peers[peerId]) return;
+        if (peerId === myId) return;
 
-        // Создаём соединение
-        createPeerConnection(peerId, true); // инициируем как offer
+        console.log('Новый участник:', peerId);
+        ensureConnection(peerId);
       });
 
+      // Удаляем при выходе
       roomRef.on('child_removed', (snapshot) => {
         const peerId = snapshot.key;
-        if (peers[peerId]) {
-          peers[peerId].close();
-          delete peers[peerId];
-          // Удаляем видео
-          const videoEl = document.getElementById(`remote-${peerId}`);
-          if (videoEl) videoEl.remove();
-        }
+        cleanupPeer(peerId);
       });
 
-      statusEl.textContent = 'В комнате. Ожидание участников...';
+      statusEl.textContent = '✅ В комнате. Ожидание участников...';
     }
 
-    function createPeerConnection(peerId, isInitiator) {
+    function shouldInitiateOffer(peerId) {
+      // Определяем, кто создаёт offer: у кого ID "меньше"
+      return myId < peerId;
+    }
+
+    function ensureConnection(peerId) {
+      if (peerConnections[peerId]) return;
+
       const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }]
       });
-      peers[peerId] = pc;
+      peerConnections[peerId] = pc;
 
       // Добавляем локальные треки
       if (localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
 
-      // Обработка удалённого потока
+      // Обработка удалённого видео
       pc.ontrack = (event) => {
-        let videoEl = document.getElementById(`remote-${peerId}`);
+        let videoEl = document.getElementById(`video-${peerId}`);
         if (!videoEl) {
           videoEl = document.createElement('video');
-          videoEl.id = `remote-${peerId}`;
+          videoEl.id = `video-${peerId}`;
           videoEl.autoplay = true;
           videoEl.playsinline = true;
           videosContainer.appendChild(videoEl);
@@ -138,46 +144,68 @@
         videoEl.srcObject = event.streams[0];
       };
 
-      // Обмен через Firebase
-      const signalsRef = roomRef.child(`${myPeerId}-${peerId}`);
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          signalsRef.push({ from: myPeerId, candidate: event.candidate });
+      // Обработка ошибок
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+          console.warn('ICE failed for', peerId);
         }
       };
 
-      if (isInitiator) {
+      // Канал сигналов между двумя участниками (упорядоченная ветка)
+      const signalRef = db.ref(`signals/${Math.min(myId, peerId)}-${Math.max(myId, peerId)}`);
+
+      // Отправка сигнала
+      const sendSignal = (data) => {
+        signalRef.push({ from: myId, ...data });
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendSignal({ candidate: event.candidate });
+        }
+      };
+
+      // Решаем, кто инициатор
+      if (shouldInitiateOffer(peerId)) {
         pc.createOffer()
           .then(offer => pc.setLocalDescription(offer))
           .then(() => {
-            signalsRef.push({ from: myPeerId, sdp: pc.localDescription });
+            sendSignal({ sdp: pc.localDescription });
           });
       }
 
-      // Слушаем сигналы
-      signalsRef.on('child_added', async (snapshot) => {
+      // Приём сигналов
+      signalRef.on('child_added', async (snapshot) => {
         const msg = snapshot.val();
-        if (msg.from === myPeerId) return; // свои сообщения игнорируем
+        if (msg.from === myId) return; // свои игнорируем
 
-        if (msg.sdp) {
-          const desc = new RTCSessionDescription(msg.sdp);
-          if (desc.type === 'offer') {
-            await pc.setRemoteDescription(desc);
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            signalsRef.push({ from: myPeerId, sdp: pc.localDescription });
-          } else if (desc.type === 'answer') {
-            await pc.setRemoteDescription(desc);
-          }
-        } else if (msg.candidate) {
-          try {
+        try {
+          if (msg.sdp) {
+            const remoteDesc = new RTCSessionDescription(msg.sdp);
+            if (remoteDesc.type === 'offer') {
+              await pc.setRemoteDescription(remoteDesc);
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              sendSignal({ sdp: pc.localDescription });
+            } else if (remoteDesc.type === 'answer') {
+              await pc.setRemoteDescription(remoteDesc);
+            }
+          } else if (msg.candidate) {
             await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-          } catch (e) {
-            console.warn('Ошибка ICE candidate:', e);
           }
+        } catch (e) {
+          console.error('Ошибка обработки сигнала:', e);
         }
       });
+    }
+
+    function cleanupPeer(peerId) {
+      if (peerConnections[peerId]) {
+        peerConnections[peerId].close();
+        delete peerConnections[peerId];
+      }
+      const videoEl = document.getElementById(`video-${peerId}`);
+      if (videoEl) videoEl.remove();
     }
   </script>
 </body>
