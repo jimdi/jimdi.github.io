@@ -33,18 +33,17 @@
   </style>
 </head>
 <body>
-  <h1>Авто-видеовстреча (все в одной комнате)</h1>
+  <h1>Авто-видеовстреча</h1>
   <div id="status">Подключение...</div>
   <div id="videos">
     <video id="localVideo" autoplay muted playsinline></video>
   </div>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <script>
-    // 🔑 ЗАМЕНИ ЭТОТ БЛОК НА СВОЙ ИЗ FIREBASE CONSOLE
+    // 🔑 ВСТАВЬ СВОЙ FIREBASE CONFIG ЗДЕСЬ
     const firebaseConfig = {
       apiKey: "AIzaSyC2qqk176eb1d_YdqrOLGrouBmiSjkbkxY",
       authDomain: "auto-meeting-demo.firebaseapp.com",
@@ -53,159 +52,132 @@
       messagingSenderId: "1056765338667",
       appId: "1:1056765338667:web:3d2c44f5a5854debbef66e",
       measurementId: "G-WLVCEZD38L"
-
     };
 
-    // ============ НИЖЕ НЕ ТРОГАТЬ ============
+    // ============ ЛОГИКА ============
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const roomRef = db.ref('rooms/main'); // одна комната
+    const roomRef = db.ref('rooms/main');
+    const signalsBaseRef = db.ref('signals');
 
     const myId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     let localStream = null;
-    const peerConnections = {};
+    const connections = {}; // { peerId: { pc, signalRef, off } }
 
     const statusEl = document.getElementById('status');
     const videosContainer = document.getElementById('videos');
 
-    // Удаляем старые записи (опционально)
-    roomRef.onDisconnect().remove();
+    // Очистка при выходе
+    window.addEventListener('beforeunload', () => {
+      roomRef.child(myId).remove();
+      Object.keys(connections).forEach(cleanupPeer);
+    });
 
-    // Получаем медиа
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
         localStream = stream;
         document.getElementById('localVideo').srcObject = stream;
-        joinRoom();
+        roomRef.child(myId).set({ ts: firebase.database.ServerValue.TIMESTAMP });
+        statusEl.textContent = 'В комнате. Ожидание...';
+
+        roomRef.on('child_added', snapshot => {
+          const peerId = snapshot.key;
+          if (peerId !== myId && !connections[peerId]) {
+            connectTo(peerId);
+          }
+        });
+
+        roomRef.on('child_removed', snapshot => {
+          const peerId = snapshot.key;
+          if (peerId !== myId) {
+            cleanupPeer(peerId);
+          }
+        });
       })
       .catch(err => {
-        statusEl.textContent = '❌ Камера/микрофон недоступны';
+        statusEl.textContent = '❌ Нет доступа к камере';
         console.error(err);
       });
 
-    function joinRoom() {
-      // Регистрируем себя
-      roomRef.child(myId).set({
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      });
-
-      // Убираем себя при выходе
-      window.addEventListener('beforeunload', () => {
-        roomRef.child(myId).remove();
-        Object.values(peerConnections).forEach(pc => pc.close());
-      });
-
-      // Слушаем новых участников
-      roomRef.on('child_added', (snapshot) => {
-        const peerId = snapshot.key;
-        if (peerId === myId) return;
-
-        console.log('Новый участник:', peerId);
-        ensureConnection(peerId);
-      });
-
-      // Удаляем при выходе
-      roomRef.on('child_removed', (snapshot) => {
-        const peerId = snapshot.key;
-        cleanupPeer(peerId);
-      });
-
-      statusEl.textContent = '✅ В комнате. Ожидание участников...';
+    function getSignalRef(peerId) {
+      const key = [myId, peerId].sort().join('-');
+      return signalsBaseRef.child(key);
     }
 
-    function shouldInitiateOffer(peerId) {
-      // Определяем, кто создаёт offer: у кого ID "меньше"
-      return myId < peerId;
-    }
+    function connectTo(peerId) {
+      if (connections[peerId]) return;
 
-    function ensureConnection(peerId) {
-      if (peerConnections[peerId]) return;
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      const signalRef = getSignalRef(peerId);
 
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }]
-      });
-      peerConnections[peerId] = pc;
-
-      // Добавляем локальные треки
+      // Добавляем треки
       if (localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
 
-      // Обработка удалённого видео
-      pc.ontrack = (event) => {
-        let videoEl = document.getElementById(`video-${peerId}`);
-        if (!videoEl) {
-          videoEl = document.createElement('video');
-          videoEl.id = `video-${peerId}`;
-          videoEl.autoplay = true;
-          videoEl.playsinline = true;
-          videosContainer.appendChild(videoEl);
+      // Видео от собеседника
+      pc.ontrack = e => {
+        let video = document.getElementById(`v-${peerId}`);
+        if (!video) {
+          video = document.createElement('video');
+          video.id = `v-${peerId}`;
+          video.autoplay = true;
+          video.playsinline = true;
+          videosContainer.appendChild(video);
         }
-        videoEl.srcObject = event.streams[0];
+        video.srcObject = e.streams[0];
       };
-
-      // Обработка ошибок
-      pc.oniceconnectionstatechange = () => {
-        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-          console.warn('ICE failed for', peerId);
-        }
-      };
-
-      // Канал сигналов между двумя участниками (упорядоченная ветка)
-      const signalRef = db.ref(`signals/${Math.min(myId, peerId)}-${Math.max(myId, peerId)}`);
 
       // Отправка сигнала
-      const sendSignal = (data) => {
-        signalRef.push({ from: myId, ...data });
+      const send = (data) => signalRef.push({ from: myId, ...data });
+
+      pc.onicecandidate = e => {
+        if (e.candidate) send({ candidate: e.candidate });
       };
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          sendSignal({ candidate: event.candidate });
-        }
-      };
-
-      // Решаем, кто инициатор
-      if (shouldInitiateOffer(peerId)) {
+      // Определяем инициатора
+      const isInitiator = myId < peerId;
+      if (isInitiator) {
         pc.createOffer()
           .then(offer => pc.setLocalDescription(offer))
-          .then(() => {
-            sendSignal({ sdp: pc.localDescription });
-          });
+          .then(() => send({ sdp: pc.localDescription }))
+          .catch(console.error);
       }
 
-      // Приём сигналов
-      signalRef.on('child_added', async (snapshot) => {
+      // ЕДИНСТВЕННЫЙ слушатель на сигналы
+      const signalListener = signalRef.on('child_added', snapshot => {
         const msg = snapshot.val();
-        if (msg.from === myId) return; // свои игнорируем
+        if (msg.from === myId) return;
 
-        try {
-          if (msg.sdp) {
-            const remoteDesc = new RTCSessionDescription(msg.sdp);
-            if (remoteDesc.type === 'offer') {
-              await pc.setRemoteDescription(remoteDesc);
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              sendSignal({ sdp: pc.localDescription });
-            } else if (remoteDesc.type === 'answer') {
-              await pc.setRemoteDescription(remoteDesc);
-            }
-          } else if (msg.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        if (msg.sdp) {
+          const desc = new RTCSessionDescription(msg.sdp);
+          if (desc.type === 'offer') {
+            pc.setRemoteDescription(desc)
+              .then(() => pc.createAnswer())
+              .then(answer => pc.setLocalDescription(answer))
+              .then(() => send({ sdp: pc.localDescription }))
+              .catch(console.error);
+          } else {
+            pc.setRemoteDescription(desc).catch(console.error);
           }
-        } catch (e) {
-          console.error('Ошибка обработки сигнала:', e);
+        } else if (msg.candidate) {
+          pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(console.error);
         }
       });
+
+      // Сохраняем всё для очистки
+      connections[peerId] = { pc, signalRef, off: () => signalRef.off('child_added', signalListener) };
     }
 
     function cleanupPeer(peerId) {
-      if (peerConnections[peerId]) {
-        peerConnections[peerId].close();
-        delete peerConnections[peerId];
+      const conn = connections[peerId];
+      if (conn) {
+        conn.off(); // отписываемся!
+        conn.pc.close();
+        delete connections[peerId];
       }
-      const videoEl = document.getElementById(`video-${peerId}`);
-      if (videoEl) videoEl.remove();
+      const video = document.getElementById(`v-${peerId}`);
+      if (video) video.remove();
     }
   </script>
 </body>
