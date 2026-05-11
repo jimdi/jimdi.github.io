@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Случайная статья</title>
+  <style>
+    :root {
+      --bg: #fff; --text: #24292e; --link: #0366d6;
+      --primary: #2ea44f; --primary-hover: #2c974b; --error: #cf222e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+      min-height: 100dvh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: clamp(1.5rem, 8vw, 3rem) 1rem; text-align: center;
+    }
+    .wrap { width: 100%; max-width: 600px; }
+    h1 { font-size: clamp(1.5rem, 5vw, 2rem); margin-bottom: 1rem; }
+    #title {
+      font-size: clamp(1.2rem, 4vw, 1.75rem); margin: 1rem 0;
+      min-height: 2.5rem; word-break: break-word;
+    }
+    #url {
+      display: block; color: var(--link); font-size: clamp(0.9rem, 3vw, 1.05rem);
+      margin: 1rem 0 1.5rem; word-break: break-all; text-decoration: none;
+    }
+    #url:hover, #url:focus { text-decoration: underline; }
+    #next {
+      padding: 0.75rem 1.5rem; font-size: 1rem; min-height: 48px;
+      cursor: pointer; border: none; background: var(--primary); color: #fff;
+      border-radius: 8px; transition: background .2s, transform .1s;
+    }
+    #next:hover { background: var(--primary-hover); }
+    #next:active { transform: scale(.98); }
+    #next:disabled { opacity: .6; cursor: wait; }
+    #error { color: var(--error); margin-top: 1rem; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🎲 Случайная статья</h1>
+    <div id="title">Загрузка...</div>
+    <a id="url" href="#" target="_blank" rel="noopener"></a>
+    <button id="next">Ещё одну</button>
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const JSON_URL = 'wiki_links.json?v=1';
+    let items = [];
+
+    function safeDecode(url) {
+      try {
+        const u = new URL(url);
+        // Ручная сборка строки для отображения (без перекодирования)
+        return u.origin + decodeURIComponent(u.pathname) + decodeURIComponent(u.search) + u.hash;
+      } catch {
+        return url;
+      }
+    }
+
+    async function load() {
+      const titleEl = document.getElementById('title');
+      const urlEl = document.getElementById('url');
+      const btn = document.getElementById('next');
+      const errorEl = document.getElementById('error');
+
+      errorEl.textContent = '';
+      btn.disabled = true;
+
+      try {
+        if (!items.length) {
+          const res = await fetch(JSON_URL, { cache: 'force-cache' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          items = await res.json();
+        }
+        if (!items.length) throw new Error('Пустой список');
+
+        const item = items[Math.floor(Math.random() * items.length)];
+        titleEl.textContent = item.title;
+        urlEl.href = item.url;              // оригинальный — для перехода
+        urlEl.textContent = safeDecode(item.url); // декодированный — для показа
+      } catch (e) {
+        errorEl.textContent = 'Ошибка: ' + e.message;
+        titleEl.textContent = '—';
+        urlEl.href = '#';
+        urlEl.textContent = '';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('next').addEventListener('click', load);
+    document.addEventListener('DOMContentLoaded', load);
+  </script>
+</body>
+</html>
