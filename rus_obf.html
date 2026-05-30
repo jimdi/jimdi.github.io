@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Обфускатор текста</title>
+  <style>
+    :root { --bg: #f5f5f5; --card: #fff; --border: #d1d5db; --primary: #2563eb; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: #111827; padding: 16px; min-height: 100vh; }
+    .wrap { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    h1 { font-size: 20px; }
+    textarea { width: 100%; min-height: 180px; padding: 12px; font-size: 16px; line-height: 1.5; border: 1px solid var(--border); border-radius: 10px; resize: vertical; background: var(--card); outline: none; }
+    textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+    button { width: 100%; padding: 14px; font-size: 16px; font-weight: 500; background: var(--primary); color: #fff; border: none; border-radius: 10px; cursor: pointer; touch-action: manipulation; transition: transform 0.1s; }
+    button:active { transform: scale(0.98); }
+    #out { background: var(--card); padding: 12px; min-height: 100px; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Обфускатор русского текста</h1>
+    <textarea id="inp" placeholder="Введите текст..." autocapitalize="off" spellcheck="false"></textarea>
+    <button id="btn">Обфусцировать</button>
+    <div id="out"></div>
+  </div>
+
+  <script>
+    const MAP = {
+      'А':['A','Α'], 'а':['a','α'], 'Б':['6','β'], 'б':['6','β'],
+      'В':['B','Β'], 'в':['B','Β'], 'Г':['r','Γ'], 'г':['r','γ'],
+      'Д':['∂','Δ'], 'д':['∂'], 'Е':['E','Ε'], 'е':['e','ε'],
+      'З':['3','Ζ'], 'з':['3','ζ'], 'И':['N','Η'], 'и':['u','ι'],
+      'К':['K','Κ'], 'к':['k','κ'], 'Л':['ʌ','Λ'], 'л':['ʌ'],
+      'М':['M','Μ'], 'м':['m','μ'], 'Н':['H','Η'], 'н':['h','η'],
+      'О':['O','Ο','0'], 'о':['o','ο','0'], 'П':['N','Π'], 'п':['n','π'],
+      'Р':['P','Ρ'], 'р':['p','ρ'], 'С':['C','Ϲ'], 'с':['c','ϲ'],
+      'Т':['T','Τ'], 'т':['t','τ'], 'У':['Y','Υ'], 'у':['y'],
+      'Ф':['Φ'], 'ф':['φ'], 'Х':['X','Χ'], 'х':['x','χ'],
+      'Ч':['4'], 'ч':['4'], 'Ш':['W'], 'ш':['w'], 'Щ':['W'], 'щ':['w'],
+      'Ъ':['ʾ','ʿ'], 'ъ':['ʾ','ʿ'], 'Ь':['B','ʹ'], 'ь':['b','ʹ'],
+      'Э':['Ɛ','Є'], 'э':['ɛ','є'], 'Я':['R'], 'я':['r'],
+      'Ё':['E'], 'ё':['e']
+    };
+    const PROB = 0.65;
+
+    document.getElementById('btn').addEventListener('click', () => {
+      const src = document.getElementById('inp').value;
+      let res = '';
+      for (const ch of src) {
+        res += MAP[ch] && Math.random() < PROB 
+          ? MAP[ch][Math.floor(Math.random() * MAP[ch].length)] 
+          : ch;
+      }
+      document.getElementById('out').textContent = res;
+    });
+  </script>
+</body>
+</html>
