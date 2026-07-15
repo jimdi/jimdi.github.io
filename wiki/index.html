@@ -37,6 +37,7 @@
     #next:active { transform: scale(.98); }
     #next:disabled { opacity: .6; cursor: wait; }
     #error { color: var(--error); margin-top: 1rem; font-size: .9rem; }
+    #counter { margin-top: .5rem; font-size: .75rem; color: #999; }
     footer { margin-top: 2rem; font-size: .8rem; color: #666; }
     footer a { color: var(--link); }
   </style>
@@ -47,13 +48,20 @@
     <div id="title">Загрузка...</div>
     <a id="url" href="#" target="_blank" rel="noopener"></a>
     <button id="next">Ещё одну</button>
+    <div id="counter"></div>
     <div id="error"></div>
     <footer>по мотивам <a href="https://idiod.leprosorium.ru/comments/2106762/" target="_blank" rel="noopener">псто</a></footer>
   </div>
 
   <script>
-    const GZ_URL = 'wiki_links.json.gz?v=2';
+    const GZ_URL = 'wiki_links.json.gz?v=3';
+    const STORAGE_KEY = 'wiki_seen';
     let items = [];
+    let seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+    function saveSeen() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...seen]));
+    }
 
     function safeDecode(url) {
       try {
@@ -72,6 +80,16 @@
       return new Response(decompressed).text();
     }
 
+    function pickItem() {
+      const unseen = items.filter((_, i) => !seen.has(i));
+      if (!unseen.length) {
+        seen.clear();
+        return items[Math.floor(Math.random() * items.length)];
+      }
+      const idx = Math.floor(Math.random() * unseen.length);
+      return unseen[idx];
+    }
+
     async function load() {
       const titleEl = document.getElementById('title');
       const urlEl = document.getElementById('url');
@@ -88,10 +106,15 @@
         }
         if (!items.length) throw new Error('Пустой список');
 
-        const item = items[Math.floor(Math.random() * items.length)];
+        const item = pickItem();
+        const idx = items.indexOf(item);
+        seen.add(idx);
+        saveSeen();
+
         titleEl.textContent = item.title;
         urlEl.href = item.url;
         urlEl.textContent = safeDecode(item.url);
+        document.getElementById('counter').textContent = `${seen.size} / ${items.length}`;
       } catch (e) {
         errorEl.textContent = 'Ошибка: ' + e.message;
         titleEl.textContent = '—';
