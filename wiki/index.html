@@ -49,17 +49,24 @@
   </div>
 
   <script>
-    const JSON_URL = 'wiki_links.json?v=1';
+    const GZ_URL = 'wiki_links.json.gz?v=2';
     let items = [];
 
     function safeDecode(url) {
       try {
         const u = new URL(url);
-        // Ручная сборка строки для отображения (без перекодирования)
         return u.origin + decodeURIComponent(u.pathname) + decodeURIComponent(u.search) + u.hash;
       } catch {
         return url;
       }
+    }
+
+    async function loadGzipped(url) {
+      const res = await fetch(url, { cache: 'force-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ds = new DecompressionStream('gzip');
+      const decompressed = res.body.pipeThrough(ds);
+      return new Response(decompressed).text();
     }
 
     async function load() {
@@ -73,16 +80,15 @@
 
       try {
         if (!items.length) {
-          const res = await fetch(JSON_URL, { cache: 'force-cache' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          items = await res.json();
+          const text = await loadGzipped(GZ_URL);
+          items = JSON.parse(text);
         }
         if (!items.length) throw new Error('Пустой список');
 
         const item = items[Math.floor(Math.random() * items.length)];
         titleEl.textContent = item.title;
-        urlEl.href = item.url;              // оригинальный — для перехода
-        urlEl.textContent = safeDecode(item.url); // декодированный — для показа
+        urlEl.href = item.url;
+        urlEl.textContent = safeDecode(item.url);
       } catch (e) {
         errorEl.textContent = 'Ошибка: ' + e.message;
         titleEl.textContent = '—';
