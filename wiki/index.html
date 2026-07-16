@@ -129,9 +129,13 @@
   <script>
     const GZ_URL = 'wiki_links.json.gz?v=5';
     const JS_URL = 'wiki_links_data.js?v=5';
-    const STORAGE_KEY = 'wiki_seen';
+    const STORAGE_KEY = 'wiki_seen_v2';
     const HISTORY_KEY = 'wiki_history';
     const HISTORY_INDEX_KEY = 'wiki_history_index';
+
+    try {
+      localStorage.removeItem('wiki_seen');
+    } catch {}
 
     const LANG_FLAGS = {
       en:'🇬🇧',ru:'🇷🇺',de:'🇩🇪',fr:'🇫🇷',es:'🇪🇸',it:'🇮🇹',pt:'🇵🇹',
@@ -230,7 +234,7 @@
       urlEl.href = item.url;
       urlEl.textContent = safeDecode(item.url);
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-      counterEl.textContent = `${seen.size} / ${items.length} · ${historyIndex + 1} / ${history.length}`;
+      counterEl.textContent = `${seen.size} / ${items.length}`;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
       btnNextNav.disabled = historyIndex >= history.length - 1;
