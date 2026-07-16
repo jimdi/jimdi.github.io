@@ -126,6 +126,8 @@
     const GZ_URL = 'wiki_links.json.gz?v=5';
     const JS_URL = 'wiki_links_data.js?v=5';
     const STORAGE_KEY = 'wiki_seen';
+    const HISTORY_KEY = 'wiki_history';
+    const HISTORY_INDEX_KEY = 'wiki_history_index';
 
     const LANG_FLAGS = {
       en:'🇬🇧',ru:'🇷🇺',de:'🇩🇪',fr:'🇫🇷',es:'🇪🇸',it:'🇮🇹',pt:'🇵🇹',
@@ -144,8 +146,15 @@
     }
     let items = [];
     let seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-    let history = [];
-    let historyIndex = -1;
+    let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    let historyIndex = parseInt(localStorage.getItem(HISTORY_INDEX_KEY) || '-1', 10);
+
+    function saveHistory() {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        localStorage.setItem(HISTORY_INDEX_KEY, String(historyIndex));
+      } catch {}
+    }
 
     const titleEl = document.getElementById('title-text');
     const flagEl = document.getElementById('flag');
@@ -239,6 +248,7 @@
         historyIndex++;
         history[historyIndex] = idx;
         history.length = historyIndex + 1;
+        saveHistory();
 
         showItem(item);
       } catch (e) {
@@ -257,18 +267,44 @@
       if (historyIndex <= 0) return;
       historyIndex--;
       showItem(items[history[historyIndex]]);
+      saveHistory();
     }
 
     function goNextNav() {
       if (historyIndex >= history.length - 1) return;
       historyIndex++;
       showItem(items[history[historyIndex]]);
+      saveHistory();
     }
 
     btnPrev.addEventListener('click', goPrev);
     btnNextNav.addEventListener('click', goNextNav);
     btnNext.addEventListener('click', load);
-    document.addEventListener('DOMContentLoaded', load);
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        if (!items.length) items = await loadItems();
+        if (!items.length) throw new Error('Пустой список');
+
+        if (history.length > 0 && historyIndex >= 0 && historyIndex < history.length && history[historyIndex] < items.length) {
+          showItem(items[history[historyIndex]]);
+        } else {
+          history = [];
+          historyIndex = -1;
+          saveHistory();
+          await load();
+        }
+      } catch (e) {
+        errorEl.textContent = 'Ошибка: ' + e.message;
+        titleEl.textContent = '—';
+        flagEl.textContent = '';
+        urlEl.href = '#';
+        urlEl.textContent = '';
+        counterEl.textContent = '';
+      } finally {
+        btnNext.disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
