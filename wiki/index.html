@@ -231,7 +231,7 @@
       urlEl.textContent = safeDecode(item.url);
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
       counterEl.textContent = isNav
-        ? `${seen.size} / ${items.length} · ${historyIndex + 1} / ${history.length}`
+        ? `${historyIndex + 1} / ${history.length}`
         : `${seen.size} / ${items.length}`;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
