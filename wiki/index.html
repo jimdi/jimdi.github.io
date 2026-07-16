@@ -34,7 +34,6 @@
       text-align: center;
     }
     .wrap { width: 100%; max-width: 640px; display: flex; flex-direction: column; flex: 1; overflow-y: auto; scrollbar-gutter: stable; }
-    .spacer { flex: 1; min-height: 0; }
     h1 {
       font-size: clamp(1.4rem, 5vw, 2rem); font-weight: 700;
       margin-bottom: clamp(.75rem, 3vw, 1.5rem); flex-shrink: 0;
@@ -116,7 +115,6 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="spacer"></div>
     <h1>🎲 Случайная статья</h1>
     <div id="title">
       <button id="prev-first" class="nav-btn" disabled title="Первая просмотренная">&lt;&lt;</button>
@@ -133,7 +131,6 @@
     <footer>по мотивам <a href="https://idiod.leprosorium.ru/comments/2106762/" target="_blank" rel="noopener">псто</a>
       <span id="keys">← → · Home End по истории · Пробел / Enter новая</span>
     </footer>
-    <div class="spacer"></div>
   </div>
 
   <script>
