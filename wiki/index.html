@@ -230,9 +230,7 @@
       urlEl.href = item.url;
       urlEl.textContent = safeDecode(item.url);
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-      counterEl.textContent = history.length > 1
-        ? `${seen.size} / ${items.length} · ${historyIndex + 1} / ${history.length}`
-        : `${seen.size} / ${items.length}`;
+      counterEl.textContent = `${seen.size} / ${items.length} · ${historyIndex + 1} / ${history.length}`;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
       btnNextNav.disabled = historyIndex >= history.length - 1;
