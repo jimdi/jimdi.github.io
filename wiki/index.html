@@ -228,13 +228,15 @@
       return unseen[Math.floor(Math.random() * unseen.length)];
     }
 
-    function showItem(item) {
+    function showItem(item, nav) {
       titleEl.textContent = item.title;
       flagEl.textContent = getFlag(item.url);
       urlEl.href = item.url;
       urlEl.textContent = safeDecode(item.url);
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-      counterEl.textContent = `${seen.size} / ${items.length}`;
+      counterEl.textContent = nav
+        ? `${historyIndex + 1} / ${history.length}`
+        : `${seen.size} / ${items.length}`;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
       btnNextNav.disabled = historyIndex >= history.length - 1;
@@ -279,28 +281,28 @@
     function goFirst() {
       if (historyIndex <= 0) return;
       historyIndex = 0;
-      showItem(items[history[historyIndex]]);
+      showItem(items[history[historyIndex]], true);
       saveHistory();
     }
 
     function goPrev() {
       if (historyIndex <= 0) return;
       historyIndex--;
-      showItem(items[history[historyIndex]]);
+      showItem(items[history[historyIndex]], true);
       saveHistory();
     }
 
     function goNextNav() {
       if (historyIndex >= history.length - 1) return;
       historyIndex++;
-      showItem(items[history[historyIndex]]);
+      showItem(items[history[historyIndex]], true);
       saveHistory();
     }
 
     function goLast() {
       if (historyIndex >= history.length - 1) return;
       historyIndex = history.length - 1;
-      showItem(items[history[historyIndex]]);
+      showItem(items[history[historyIndex]], true);
       saveHistory();
     }
 
@@ -316,7 +318,7 @@
         if (!items.length) throw new Error('Пустой список');
 
         if (history.length > 0 && historyIndex >= 0 && historyIndex < history.length && history[historyIndex] < items.length) {
-          showItem(items[history[historyIndex]]);
+          showItem(items[history[historyIndex]], true);
         } else {
           history = [];
           historyIndex = -1;
