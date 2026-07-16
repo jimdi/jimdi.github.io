@@ -224,14 +224,14 @@
       return unseen[Math.floor(Math.random() * unseen.length)];
     }
 
-    function showItem(item, isNav) {
+    function showItem(item) {
       titleEl.textContent = item.title;
       flagEl.textContent = getFlag(item.url);
       urlEl.href = item.url;
       urlEl.textContent = safeDecode(item.url);
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-      counterEl.textContent = isNav
-        ? `${historyIndex + 1} / ${history.length}`
+      counterEl.textContent = history.length > 1
+        ? `${seen.size} / ${items.length} · ${historyIndex + 1} / ${history.length}`
         : `${seen.size} / ${items.length}`;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
@@ -277,28 +277,28 @@
     function goFirst() {
       if (historyIndex <= 0) return;
       historyIndex = 0;
-      showItem(items[history[historyIndex]], true);
+      showItem(items[history[historyIndex]]);
       saveHistory();
     }
 
     function goPrev() {
       if (historyIndex <= 0) return;
       historyIndex--;
-      showItem(items[history[historyIndex]], true);
+      showItem(items[history[historyIndex]]);
       saveHistory();
     }
 
     function goNextNav() {
       if (historyIndex >= history.length - 1) return;
       historyIndex++;
-      showItem(items[history[historyIndex]], true);
+      showItem(items[history[historyIndex]]);
       saveHistory();
     }
 
     function goLast() {
       if (historyIndex >= history.length - 1) return;
       historyIndex = history.length - 1;
-      showItem(items[history[historyIndex]], true);
+      showItem(items[history[historyIndex]]);
       saveHistory();
     }
 
