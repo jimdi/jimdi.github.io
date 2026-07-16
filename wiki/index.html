@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <title>Случайная статья</title>
+  <title>Random article</title>
   <style>
     :root {
       --bg: #fff; --bg-card: #f6f8fa; --text: #24292e; --text-secondary: #656d76;
@@ -106,9 +106,9 @@
     }
     @media (hover: none) and (pointer: coarse) {
       #next { min-height: 52px; }
-      #keys { display: none; }
+      #keys-text { display: none; }
     }
-    #keys {
+    #keys-text {
       display: block; margin-top: .25rem;
       font-size: clamp(.65rem, 2vw, .75rem); opacity: .5;
     }
@@ -128,6 +128,34 @@
       outline: 3px solid var(--link); outline-offset: 2px;
       border-radius: 4px;
     }
+    #lang-btn {
+      position: fixed; top: max(env(safe-area-inset-top, 0px), .5rem); right: max(env(safe-area-inset-right, 0px), .5rem);
+      z-index: 1000; width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; cursor: pointer; border-radius: 50%;
+      background: var(--bg-card); border: 1px solid var(--border);
+      box-shadow: var(--shadow); user-select: none;
+      transition: background .15s;
+    }
+    #lang-btn:hover { background: var(--border); }
+    #lang-menu {
+      position: fixed; z-index: 1001;
+      top: max(env(safe-area-inset-top, 0px), 3.2rem); right: max(env(safe-area-inset-right, 0px), .5rem);
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      padding: .3rem; display: none; flex-direction: column; gap: 2px;
+      min-width: 150px;
+    }
+    #lang-menu.open { display: flex; }
+    #lang-menu button {
+      background: none; border: none; cursor: pointer;
+      padding: .45rem .75rem; border-radius: 6px;
+      font-size: .85rem; color: var(--text); text-align: left;
+      display: flex; align-items: center; gap: .4rem;
+      white-space: nowrap;
+    }
+    #lang-menu button:hover { background: var(--border); }
+    #lang-menu button.active { background: var(--primary); color: #fff; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         transition-duration: 0s !important;
@@ -142,28 +170,109 @@
   </style>
 </head>
 <body>
-  <a href="#main" class="skip-link">К содержанию</a>
+  <a href="#main" class="skip-link"><span id="skip-text">Skip to content</span></a>
+  <div id="lang-btn" role="button" tabindex="0" aria-label="Language">🌐</div>
+  <div id="lang-menu" role="menu">
+    <button role="menuitem" data-lang="auto">🌐 Auto</button>
+    <button role="menuitem" data-lang="en">🇬🇧 English</button>
+    <button role="menuitem" data-lang="ru">🇷🇺 Русский</button>
+    <button role="menuitem" data-lang="uk">🇺🇦 Українська</button>
+    <button role="menuitem" data-lang="zh">🇨🇳 中文</button>
+  </div>
   <main class="wrap" id="main" tabindex="-1">
-    <h1><span aria-hidden="true">🎲</span> Случайная статья</h1>
+    <h1><span aria-hidden="true">🎲</span> <span id="heading-text">Random article</span></h1>
     <div id="title">
-      <button id="prev-first" class="nav-btn" disabled title="Первая просмотренная" aria-label="Первая просмотренная">&lt;&lt;</button>
-      <button id="prev" class="nav-btn" disabled title="Предыдущая" aria-label="Предыдущая">&lt;</button>
+      <button id="prev-first" class="nav-btn" disabled title="First viewed" aria-label="First viewed">&lt;&lt;</button>
+      <button id="prev" class="nav-btn" disabled title="Previous" aria-label="Previous">&lt;</button>
       <span id="flag"></span>
-      <span id="title-text" role="heading" aria-level="2">Загрузка...</span>
-      <button id="next-nav" class="nav-btn" disabled title="Следующая" aria-label="Следующая">&gt;</button>
-      <button id="next-last" class="nav-btn" disabled title="Последняя просмотренная" aria-label="Последняя просмотренная">&gt;&gt;</button>
+      <span id="title-text" role="heading" aria-level="2">Loading...</span>
+      <button id="next-nav" class="nav-btn" disabled title="Next" aria-label="Next">&gt;</button>
+      <button id="next-last" class="nav-btn" disabled title="Last viewed" aria-label="Last viewed">&gt;&gt;</button>
     </div>
     <a id="url" href="#" target="_blank" rel="noopener"></a>
-    <button id="next" aria-label="Следующая случайная статья">Ещё одну</button>
+    <button id="next" aria-label="Next random article">Another one</button>
     <div id="counter"></div>
     <div id="error" role="alert"></div>
-    <footer>по мотивам <a href="https://idiod.leprosorium.ru/comments/2106762/" target="_blank" rel="noopener">псто</a>
-      <span id="keys">← → · Home End по истории · Пробел / Enter новая</span>
+    <footer>
+      <span id="footer-text">based on </span><a href="https://idiod.leprosorium.ru/comments/2106762/" target="_blank" rel="noopener" id="footer-link">post</a>
+      <span id="keys-text">← → · Home End history · Space / Enter new</span>
     </footer>
     <div id="announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   </main>
 
   <script>
+    const LANG_KEY = 'wiki_lang';
+    const LANGUAGES = {
+      en: {
+        title: 'Random article',
+        skip: 'Skip to content',
+        heading: 'Random article',
+        prevFirst: 'First viewed',
+        prev: 'Previous',
+        nextNav: 'Next',
+        nextLast: 'Last viewed',
+        nextBtn: 'Another one',
+        nextBtnAria: 'Next random article',
+        footer: 'based on ',
+        footerLink: 'post',
+        keys: '\u2190 \u2192 \u00b7 Home End history \u00b7 Space / Enter new',
+        error: 'Error',
+        empty: 'Empty list',
+        loading: 'Loading...',
+      },
+      ru: {
+        title: 'Случайная статья',
+        skip: 'К содержанию',
+        heading: 'Случайная статья',
+        prevFirst: 'Первая просмотренная',
+        prev: 'Предыдущая',
+        nextNav: 'Следующая',
+        nextLast: 'Последняя просмотренная',
+        nextBtn: 'Ещё одну',
+        nextBtnAria: 'Следующая случайная статья',
+        footer: 'по мотивам ',
+        footerLink: 'псто',
+        keys: '← → · Home End по истории · Пробел / Enter новая',
+        error: 'Ошибка',
+        empty: 'Пустой список',
+        loading: 'Загрузка...',
+      },
+      uk: {
+        title: 'Випадкова стаття',
+        skip: 'До змісту',
+        heading: 'Випадкова стаття',
+        prevFirst: 'Перша переглянута',
+        prev: 'Попередня',
+        nextNav: 'Наступна',
+        nextLast: 'Остання переглянута',
+        nextBtn: 'Ще одну',
+        nextBtnAria: 'Наступна випадкова стаття',
+        footer: 'за мотивами ',
+        footerLink: 'посту',
+        keys: '← → · Home End історія · Пробіл / Enter нова',
+        error: 'Помилка',
+        empty: 'Порожній список',
+        loading: 'Завантаження...',
+      },
+      zh: {
+        title: '随机文章',
+        skip: '跳转到内容',
+        heading: '随机文章',
+        prevFirst: '第一个浏览的',
+        prev: '上一个',
+        nextNav: '下一个',
+        nextLast: '最后一个浏览的',
+        nextBtn: '再来一个',
+        nextBtnAria: '下一篇随机文章',
+        footer: '基于 ',
+        footerLink: '帖子',
+        keys: '← → · Home End 历史 · 空格 / Enter 新文章',
+        error: '错误',
+        empty: '列表为空',
+        loading: '加载中...',
+      },
+    };
+
     const GZ_URL = 'wiki_links.json.gz?v=5';
     const JS_URL = 'wiki_links_data.js?v=5';
     const STORAGE_KEY = 'wiki_seen_v2';
@@ -189,6 +298,17 @@
         return LANG_FLAGS[lang] || '';
       } catch { return ''; }
     }
+
+    function resolveLang(pref) {
+      if (pref === 'auto') {
+        const browserLang = (navigator.language || '').slice(0, 2);
+        return LANGUAGES[browserLang] ? browserLang : 'en';
+      }
+      return LANGUAGES[pref] ? pref : 'en';
+    }
+
+    let langPref = localStorage.getItem(LANG_KEY) || 'auto';
+    let lang = resolveLang(langPref);
     let items = [];
     let seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
     let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -212,6 +332,8 @@
     const btnNextNav = document.getElementById('next-nav');
     const btnNextLast = document.getElementById('next-last');
     const announceEl = document.getElementById('announce');
+    const langBtn = document.getElementById('lang-btn');
+    const langMenu = document.getElementById('lang-menu');
 
     function saveSeen() {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...seen])); } catch {}
@@ -224,9 +346,53 @@
       } catch { return url; }
     }
 
+    function setLang(pref) {
+      langPref = pref;
+      lang = resolveLang(pref);
+      try { localStorage.setItem(LANG_KEY, pref); } catch {}
+      applyLang();
+      langMenu.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === pref);
+      });
+    }
+
+    function applyLang() {
+      const t = LANGUAGES[lang];
+      if (!t) return;
+      document.documentElement.lang = lang;
+      document.title = t.title;
+      document.getElementById('skip-text').textContent = t.skip;
+      document.getElementById('heading-text').textContent = t.heading;
+      if (!items.length) titleEl.textContent = t.loading;
+      btnPrevFirst.title = t.prevFirst;
+      btnPrevFirst.setAttribute('aria-label', t.prevFirst);
+      btnPrev.title = t.prev;
+      btnPrev.setAttribute('aria-label', t.prev);
+      btnNextNav.title = t.nextNav;
+      btnNextNav.setAttribute('aria-label', t.nextNav);
+      btnNextLast.title = t.nextLast;
+      btnNextLast.setAttribute('aria-label', t.nextLast);
+      btnNext.textContent = t.nextBtn;
+      btnNext.setAttribute('aria-label', t.nextBtnAria);
+      document.getElementById('footer-text').textContent = t.footer;
+      document.getElementById('footer-link').textContent = t.footerLink;
+      document.getElementById('keys-text').textContent = t.keys;
+      if (history.length > 0 && historyIndex >= 0 && history[historyIndex] < items.length) {
+        document.title = items[history[historyIndex]].title + ' \u2014 ' + t.title;
+      }
+    }
+
+    function toggleMenu() {
+      langMenu.classList.toggle('open');
+    }
+
+    function closeMenu() {
+      langMenu.classList.remove('open');
+    }
+
     async function loadGzipped(url) {
       const res = await fetch(url, { cache: 'force-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const ds = new DecompressionStream('gzip');
       const decompressed = res.body.pipeThrough(ds);
       return new Response(decompressed).text();
@@ -267,17 +433,18 @@
     }
 
     function showItem(item, nav) {
+      const t = LANGUAGES[lang];
       titleEl.textContent = item.title;
       flagEl.textContent = getFlag(item.url);
       urlEl.href = item.url;
       urlEl.textContent = safeDecode(item.url);
-      document.title = item.title + ' — Случайная статья';
+      document.title = item.title + ' \u2014 ' + t.title;
       if (announceEl) announceEl.textContent = item.title;
       document.querySelector('.wrap').scrollTop = 0;
       seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
       counterEl.textContent = nav
-        ? `${historyIndex + 1} / ${history.length}`
-        : `${seen.size} / ${items.length}`;
+        ? (historyIndex + 1) + ' / ' + history.length
+        : seen.size + ' / ' + items.length;
       btnPrevFirst.disabled = historyIndex <= 0;
       btnPrev.disabled = historyIndex <= 0;
       btnNextNav.disabled = historyIndex >= history.length - 1;
@@ -285,12 +452,13 @@
     }
 
     async function load() {
+      const t = LANGUAGES[lang];
       errorEl.textContent = '';
       btnNext.disabled = true;
 
       try {
         if (!items.length) { items = await loadItems(); }
-        if (!items.length) throw new Error('Пустой список');
+        if (!items.length) throw new Error(t.empty);
 
         if (historyIndex < history.length - 1) {
           history = history.slice(0, historyIndex + 1);
@@ -308,14 +476,14 @@
 
         showItem(item);
       } catch (e) {
-        errorEl.textContent = 'Ошибка: ' + e.message;
-        titleEl.textContent = '—';
+        errorEl.textContent = t.error + ': ' + e.message;
+        titleEl.textContent = '\u2014';
         flagEl.textContent = '';
         urlEl.href = '#';
         urlEl.textContent = '';
         counterEl.textContent = '';
-        document.title = 'Ошибка — Случайная статья';
-        if (announceEl) announceEl.textContent = 'Ошибка: ' + e.message;
+        document.title = t.error + ' \u2014 ' + t.title;
+        if (announceEl) announceEl.textContent = t.error + ': ' + e.message;
       } finally {
         btnNext.disabled = false;
       }
@@ -355,10 +523,36 @@
     btnNextLast.addEventListener('click', goLast);
     btnNext.addEventListener('click', load);
 
+    langBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+    langBtn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleMenu();
+      }
+    });
+
+    langMenu.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      setLang(btn.dataset.lang);
+      closeMenu();
+    });
+
+    document.addEventListener('click', e => {
+      if (!langMenu.contains(e.target) && e.target !== langBtn) {
+        closeMenu();
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
+      setLang(langPref);
+
       try {
         if (!items.length) items = await loadItems();
-        if (!items.length) throw new Error('Пустой список');
+        if (!items.length) throw new Error(LANGUAGES[lang].empty);
 
         if (history.length > 0 && historyIndex >= 0 && historyIndex < history.length && history[historyIndex] < items.length) {
           showItem(items[history[historyIndex]], true);
@@ -369,14 +563,15 @@
           await load();
         }
       } catch (e) {
-        errorEl.textContent = 'Ошибка: ' + e.message;
-        titleEl.textContent = '—';
+        const t = LANGUAGES[lang];
+        errorEl.textContent = t.error + ': ' + e.message;
+        titleEl.textContent = '\u2014';
         flagEl.textContent = '';
         urlEl.href = '#';
         urlEl.textContent = '';
         counterEl.textContent = '';
-        document.title = 'Ошибка — Случайная статья';
-        if (announceEl) announceEl.textContent = 'Ошибка: ' + e.message;
+        document.title = t.error + ' \u2014 ' + t.title;
+        if (announceEl) announceEl.textContent = t.error + ': ' + e.message;
       } finally {
         btnNext.disabled = false;
       }
@@ -391,6 +586,7 @@
         if (e.target === urlEl) return;
         e.preventDefault(); load();
       }
+      else if (e.key === 'Escape') { closeMenu(); }
     });
   </script>
 </body>
